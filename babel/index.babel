@@ -1,0 +1,342 @@
+//REDUX_______________________________________________
+const DIGIT= 'DIGIT';
+const OPERATION= 'OPERATION';
+const CAL= 'CAL';
+const CLEAR= 'CLEAR';
+const initialState = {
+      prev : 0,
+      next : 0,
+      result : 0,
+      exp : Number($('#display').text()),
+      operation : '+'
+}
+
+
+function addDigit(next, exp) {
+  return {
+    type: DIGIT,
+    next: next,
+    exp: exp
+  }
+}
+
+function addOperation(prev, operation){
+  return{
+    type: OPERATION,
+    prev: prev,
+    operation: operation
+  }
+}
+
+function calculate(result){
+  return{
+    type: CAL,
+    result: result
+  }
+}
+
+function allClear(){
+  return{
+    type: CLEAR,
+    prev: 0,
+    next: 0
+  }
+}
+
+
+function reducer(state= initialState, action){
+  switch(action.type){
+    case DIGIT : return {prev: state.prev, next: action.next, result: state.result, exp: action.exp, operation: state.operation};
+    case OPERATION: return {prev: action.prev, next: state.next, result: state.result, exp: state.exp, operation: action.operation};
+    case CAL: return {prev: state.prev, next: state.next, result: action.result, exp: state.exp, operation: state.operation};
+    case CLEAR: return {prev: action.prev, next: action.next, result: state.result, exp: state.exp, operation: state.operation};
+    default : return state;
+  }
+}
+
+
+//Redux Store__________________________________________
+const store = Redux.createStore(reducer);
+
+
+// Array of Objects to hold keys-------------------------
+
+const keys = [
+   {key: 'AC', id: 'key-AC'},
+   {key: '/', id: 'key-/'},
+   {key: 'X', id: 'key-X'},
+   {key: '1', id: 'key-1'},
+   {key: '2', id: 'key-2'},
+   {key: '3', id: 'key-3'},
+   {key: '+', id: 'key-+'}, 
+   {key: '4', id: 'key-4'},
+   {key: '5', id: 'key-5'},
+   {key: '6', id: 'key-6'},
+   {key: '-', id: 'key--'},
+   {key: '7', id: 'key-7'},
+   {key: '8', id: 'key-8'},
+   {key: '9', id: 'key-9'},
+   {key: '=', id: 'key-eq'},
+   {key: '0', id: 'key-0'},
+   {key: '.', id: 'key-.'}
+]
+
+
+
+//REACT_________________________________
+
+
+//calculator component____________________________
+class Calculator extends React.Component {
+  render() {
+    return(
+      <div id="calc">
+        <Expression />
+        <Display />
+        <Container />
+      </div>
+    );
+  }
+}
+
+
+//keypad component _______________________________
+
+class KeyPad extends React.Component {
+  
+  constructor(props){
+    super(props);
+    this.handleClick = this.handleClick.bind(this);
+    this.clear = this.clear.bind(this);
+    this.setResult = this.setResult.bind(this);
+    this.setOperation = this.setOperation.bind(this);
+    this.accumulateExp = this.accumulateExp.bind(this);
+    this.state = {
+      prev : 0,
+      next : 0,
+      result : 0,
+      exp : Number($('#display').text()),
+      operation : '+'
+    };
+    clear = false;
+    refresh = false;
+    operOverride = false;
+  }
+  
+  
+  
+  //All Clear function--------
+  clear(){
+    $('#exp').empty();
+    $('#display #input').empty();
+    this.props.mapChange();
+    clear = true;
+  }
+  //------
+  
+  
+  
+  //calculate final result from expressin accumulator-----
+  setResult(){
+    $('#display #input').html(this.props.exp); //display and set result as accumulated exp
+      result = this.props.exp;
+      refresh = true;
+      clear = true;  //clear and reset after setting result
+      $('#exp').empty();
+      this.props.mapResult(result); //send result to store
+  }
+  //-------
+  
+  
+  
+  //set operation and update prev--------
+  setOperation(oper){
+    if(operOverride){  //multiple operations (last operation overrides rest)
+          clear = false;
+          operOverride = false;
+        }
+        if(clear) {
+          prev = Number(this.props.next); //if exp is empty, next added input becomes prev
+          clear = false;
+        }
+        else{
+          prev = this.props.exp;
+        }
+        
+        operation = oper;
+        operOverride = true;
+  }
+  //--------
+  
+  
+  
+  //Upate exp accumulator----------
+  accumulateExp(){
+      next = $('#display #input').text(); //current input
+      switch(this.props.operation){
+        case '+': exp = this.props.prev + Number(next);
+                  break;
+        case '-': exp = this.props.prev - Number(next);
+                  break;
+        case 'X': exp = this.props.prev * Number(next);
+                  break;
+        case '/': exp = this.props.prev / Number(next);
+                  break;
+        default: return;
+      }
+      this.props.mapDigit(next, exp);
+  }
+  //-------------
+  
+  
+  
+  
+  handleClick(e){
+    
+    //animation for keypad_____________________
+    $(e.target).addClass('anim');
+    setTimeout(function() {
+        $('.anim').removeClass('anim');
+      }, 500);
+    //--------
+    
+    
+    var input = $(e.target).text();//current input key-----------
+    
+   //regex____________________________
+    var digits = /[\d.]/;//regex to match digits
+    var operationals = /[\/X+-]/;//regex to match operations
+    //---------
+    
+    
+    if(operationals.test($('#display #input').text())){
+      $('#display #input').empty(); //clear display of digits if input is operation
+    }
+    if(refresh){
+        $('#exp').html(Number(this.props.result));
+        refresh = false;
+       if(digits.test(input)){
+         $('#exp').empty();
+         $('#input').empty();
+       }
+      else {clear = false;}
+    }
+    
+   
+    
+    if(digits.test(input)){  //if input is a DIGIT---------
+       $('#display #input').append(input);
+      
+       this.accumulateExp();
+      
+       $('#exp').append(input);
+       operOverride = false;
+    }
+    else if(operationals.test(input)){ //if input is an OPERATION------------
+        //checking if display intially contains digits (canbe stored as prev) prior to updating it with operation
+        if(!operationals.test($('#display #input').text())){
+           this.setOperation(input);
+        }
+      
+        this.props.mapOperation(prev, operation);
+        $('#exp').append(input);
+        $('#display #input').html(input);
+    }
+     //-------------------------------------------------------------------
+   else if(input == '='){
+      this.setResult();
+    }
+    
+   else if(input == 'AC'){
+      this.clear();
+   }
+ }
+  
+  
+  render() {
+    var keyss = keys.map((a) => {
+      return (
+        <div id={a.id} key={a.key} class="key" onClick={this.handleClick}>{a.key}</div>
+      )
+    });
+    return (
+      <div id="keypad">
+        {keyss}
+      </div>
+    );
+  }
+}
+
+//mapping state and props to Redux-------
+const mapStateToProps = (state)  => {
+  return {
+    prev: state.prev,
+    next: state.next,
+    result: state.result,
+    exp: state.exp,
+    operation: state.operation
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    mapDigit : function(next,exp) {
+        dispatch(addDigit(next, exp));
+     },
+    mapOperation : function(prev, operation) {
+       dispatch(addOperation(prev, operation));
+    },
+    mapResult : function(result) {
+       dispatch(calculate(result));
+    },
+    mapChange :  function() {
+       dispatch(allClear());
+    }
+  };
+};
+
+
+
+//display screen component ____________________________
+
+class Display extends React.Component {
+  render() {
+    return (
+      <div id="display">
+        <div id="input"></div>  
+      </div>
+    )
+  }
+}
+
+class Expression extends React.Component {
+  render() {
+    return (
+     <div id='exp'/>
+    );
+  }
+}
+
+
+const connect = ReactRedux.connect;
+
+const Container = connect(mapStateToProps, mapDispatchToProps)(KeyPad);
+
+//create a provider --------
+const Provider = ReactRedux.Provider;
+
+class AppWrapper extends React.Component{
+  render() {
+    return(
+      <Provider store={store}>
+        <Calculator />
+      </Provider>
+    )
+  }
+}
+
+
+
+
+//render the calculator_______________________________
+ReactDOM.render(<AppWrapper />, document.getElementById('app'));
